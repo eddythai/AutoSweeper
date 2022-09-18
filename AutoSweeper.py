@@ -18,6 +18,7 @@ class Cell:
         self.number = number
 
 board = collections.defaultdict(Cell) #holds data of cells (bombs and number) in the board
+fail = False
 
 def main():
     s = Service('C:/SeleniumDrivers/chromedriver.exe')
@@ -45,47 +46,71 @@ def main():
                 for col in range(-1,2):
                     checkString = str(int(flaggedID[0])+row)+"_"+str(int(flaggedID[1])+col)
                     checkElement = driver.find_element(By.ID, checkString)
-                    if board.get(checkElement.get_attribute('id'), None) == None:
-                        board[checkElement.get_attribute('id')] = Cell(1,-2)
+
+                    #Gets ID of checkElement
+                    checkAttribute = checkElement.get_attribute('id')
+                    if board.get(checkAttribute, None) == None:
+                        board[checkAttribute] = Cell(1,-2)
                     else:
-                        board.get(checkElement.get_attribute('id')).bombs += 1
+                        board.get(checkAttribute).bombs += 1
                         #if bomb is equal to square number, then clear all the squares adjacent to that
-                        if int(board.get(checkElement.get_attribute('id')).bombs) == int(board.get(checkElement.get_attribute('id')).number):
+                        if int(board.get(checkAttribute).bombs) == int(board.get(checkAttribute).number):
                             clearSquares(checkElement,driver)
 
                     elemAttribute = checkElement.get_attribute('class').split()
                     if "open" in elemAttribute[1]:
-                        board.get(checkElement.get_attribute('id')).number = elemAttribute[1][-1]
-                        if int(board.get(checkElement.get_attribute('id')).bombs) == int(board.get(checkElement.get_attribute('id')).number):
-                            print("equals")
+                        board.get(checkAttribute).number = elemAttribute[1][-1]
+                        if int(board.get(checkAttribute).bombs) == int(board.get(checkAttribute).number):
+                            print("equals",checkAttribute)
                             clearSquares(checkElement,driver)
-            for key,value in board.items():
-                print(key, value.bombs, value.number)
+            if fail == True:
+                print("FAIL BOARD")
+                break
+            # for key,value in board.items():
+            #     print(key, value.bombs, value.number)
 
 def clearSquares(checkElement,driver):
     checkID = checkElement.get_attribute('id').split("_")
     for row2 in range(-1,2):
-        for col2 in range(-1,2):
-            boardKey = str(int(checkID[0])+row2)+"_"+str(int(checkID[1])+col2)
-            if board.get(boardKey,None) == None:
-                keyElement = driver.find_element(By.ID, boardKey)
-                keyAttribute = keyElement.get_attribute('class').split()
-                if "open" in keyAttribute[1]:
-                    board[boardKey] = Cell(0,keyAttribute[1][-1])
-                elif "flag" in keyAttribute[1]:
-                    driver.execute_script("arguments[0].setAttribute('class','square bombflagged checked')", keyElement)
-                    board[boardKey] = Cell(0,-1)
+        row = int(checkID[0])+row2
+        if row <= 16 and row > 0:
+            for col2 in range(-1,2):
+                col = int(checkID[1])+col2
+                if col <= 30 and col > 0:
+                    boardKey = str(row)+"_"+str(col)
+                    if board.get(boardKey,None) == None:
+                        keyElement = driver.find_element(By.ID, boardKey)
+                        keyAttribute = keyElement.get_attribute('class').split()
+                        if "open" in keyAttribute[1]:
+                            board[boardKey] = Cell(0,keyAttribute[1][-1])
+                        elif "flag" in keyAttribute[1]:
+                            driver.execute_script("arguments[0].setAttribute('class','square bombflagged checked')", keyElement)
+                            board[boardKey] = Cell(0,-1)
+                        else:
+                            board[boardKey] = Cell(0,-2)
+                            
+                    if board.get(boardKey).number == -2:
+                        clearElement = driver.find_element(By.ID, boardKey)
+                        clearID = clearElement.get_attribute('id')
+                        print("click",clearID)
+                        clearElement.click()
+                        if "bombdeath" in clearElement.get_attribute('class'):
+                            fail = True
+                            print("FAIL")
+                            break
+                        else:
+                            clearElemNumber = clearElement.get_attribute('class').split()[1][-1]
+                            while not clearElemNumber.isnumeric():
+                                clearElement.click()
+                                clearElemNumber = clearElement.get_attribute('class').split()[1][-1]
+                            board.get(clearID).number = clearElemNumber
+                            print("set", clearID, board.get(clearID).bombs, board.get(clearID).number)
+                            if int(board.get(clearID).bombs) == int(board.get(clearID).number):
+                                clearSquares(clearElement,driver)
                 else:
-                    board[boardKey] = Cell(0,-2)
-                    
-            if board.get(boardKey).number == -2:
-                clearElement = driver.find_element(By.ID, boardKey)
-                clearElement.click()
-
-                clearID = clearElement.get_attribute('id')
-                board.get(clearID).number = clearElement.get_attribute('class').split()[1][-1]
-                if int(board.get(clearID).bombs) == int(board.get(clearID).number):
-                    clearSquares(checkElement,driver)
+                    continue
+        else:
+            continue
 
                 
 
