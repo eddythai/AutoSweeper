@@ -14,7 +14,8 @@ class Cell:
         self.blanks = set()
         self.element = driver.find_element(By.ID, f'{row}_{col}')
 
-    def set_neighbors(self, size_row, size_col):
+    #auto = false means flag only, else auto.
+    def set_neighbors(self, size_row, size_col, auto = True):
         for i in range(-1,2):
             neighborRow = int(self.row) + i
             #checks if selected row is within dimension
@@ -28,27 +29,17 @@ class Cell:
                     if neighborCol <= size_col and neighborCol > 0:
                         id = f'{neighborRow}_{neighborCol}'
                         self.neighbors |= {id}
+                        if auto == True:
+                            self.blanks |= {id}
 
                         
     def add_neighbor_bomb(self, bomb):
         self.neighbor_bombs |= {bomb}
 
-    def set_blanks(self, size_row, size_col, board):
-        for i in range(-1,2):
-            neighborRow = int(self.row) + i
-            #checks if selected row is within dimension
-            if neighborRow <= size_row and neighborRow > 0:
-                for j in range(-1,2):
-                    #passes current cell so itself is not a neighbor of itself
-                    if i == 0 and j == 0:
-                        pass
-                    neighborCol = int(self.col) + j
-                    #checks if selected col is within dimension
-                    if neighborCol <= size_col and neighborCol > 0:
-                        id = f'{neighborRow}_{neighborCol}'
-                        element = board.find_element(By.ID, id)
-                        if "blank" in element.get_attribute("class"):
-                            self.blanks |= {id}
+    def clear_blanks(self, board):
+        id = f"{self.row}_{self.col}"
+        for neighbor in self.neighbors:
+            board.dict[neighbor].blanks.discard(id)
 
     def click(self):
         self.element.click()
@@ -93,19 +84,22 @@ class Cell:
         try:
             if str(self.number).isdigit() == True:
                 if int(self.bombs()) == int(self.number):
-                    for cell in self.to_reveal():
-                        if board.dict[cell].number == "blank":
-                            print("click",cell)
-                            board.dict[cell].click()
-                            
-                            for neighbor in board.dict[cell].neighbors:
-                                board.dict[neighbor].blanks.discard(cell)
+                    for cell in self.blanks.copy():
+                        print("click",cell)
+                        initElem = board.find_elements(By.CSS_SELECTOR, "div[class*='open']:not([class*='checked'])")
+                        board.dict[cell].click()
+                        revealedElem = set(board.find_elements(By.CSS_SELECTOR, "div[class*='open']:not([class*='checked'])")).difference(set(initElem))
+                        
+                        for i in revealedElem:
+                            id = i.get_attribute('id')
+                            board.dict[id].set_number()
+                            board.dict[id].clear_blanks(board)
 
-                            if board.dict[cell].number == "death":
-                                board.completed = "LOSER"
-                                return
-                            else:
-                                board.dict[cell].auto_clear_cells(board)
+                        if board.dict[cell].number == "death":
+                            board.completed = "LOSER"
+                            return
+                        else:
+                            board.dict[cell].auto_clear_cells(board)
         except UnexpectedAlertPresentException:
             board.completed = "WIN"
     

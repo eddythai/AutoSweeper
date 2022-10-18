@@ -20,9 +20,7 @@ class Board(webdriver.Chrome):
         self.completed = "NOT COMPLETED"
 
     def add_cell(self, cell_row, cell_col):
-        print(f'add cell: {cell_row}_{cell_col}')
         key = f'{cell_row}_{cell_col}'
         if self.dict.get(key, None) == None:
                 self.dict[key] = Cell(cell_row, cell_col, self)
                 self.dict[key].set_cell(self.rows, self.cols)
-        print("add finished")
