@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import UnexpectedAlertPresentException
+from selenium.webdriver.common.action_chains import ActionChains
 import constants
 
 
@@ -10,12 +11,12 @@ class Cell:
         self.row = row
         self.col = col
         self.neighbors = set()
-        self.neighbor_bombs = set()
-        self.blanks = set()
+        self.bomb = False
+        self.blank = True
+        self.actions = ActionChains(driver)
         self.element = driver.find_element(By.ID, f'{row}_{col}')
 
-    #auto = false means flag only, else auto.
-    def set_neighbors(self, size_row, size_col, auto = True):
+    def set_neighbors(self, size_row, size_col, board):
         for i in range(-1,2):
             neighborRow = int(self.row) + i
             #checks if selected row is within dimension
@@ -23,23 +24,19 @@ class Cell:
                 for j in range(-1,2):
                     #passes current cell so itself is not a neighbor of itself
                     if i == 0 and j == 0:
-                        pass
+                        continue
                     neighborCol = int(self.col) + j
                     #checks if selected col is within dimension
                     if neighborCol <= size_col and neighborCol > 0:
                         id = f'{neighborRow}_{neighborCol}'
-                        self.neighbors |= {id}
-                        if auto == True:
-                            self.blanks |= {id}
+                        self.neighbors.add(board.dict[id])
+
+    def set_blanks(self):
+        return set(filter(lambda neighbor: neighbor.blank, self.neighbors))
 
                         
-    def add_neighbor_bomb(self, bomb):
-        self.neighbor_bombs |= {bomb}
-
-    def clear_blanks(self, board):
-        id = f"{self.row}_{self.col}"
-        for neighbor in self.neighbors:
-            board.dict[neighbor].blanks.discard(id)
+    def set_bombs(self):
+        return set(filter(lambda neighbor: neighbor.bomb, self.neighbors))
 
     def click(self):
         self.element.click()
@@ -53,12 +50,10 @@ class Cell:
         return self.neighbors.difference(self.neighbor_bombs)
 
     def set_number(self):
+        self.blank = False
         if self.number == "blank":
             elementClass = self.element.get_attribute('class')
             self.number = constants.CELL_CLASS[elementClass]
-                
-    def bombs(self) -> int:
-        return len(self.neighbor_bombs)
 
     def clear_cells(self, board):
             try:
@@ -80,29 +75,24 @@ class Cell:
                 board.completed = "WIN"
             print("CLEARCELL FINISH")
 
-    def auto_clear_cells(self, board):
-        try:
-            if str(self.number).isdigit() == True:
-                if int(self.bombs()) == int(self.number):
-                    for cell in self.blanks.copy():
-                        print("click",cell)
-                        initElem = board.find_elements(By.CSS_SELECTOR, "div[class*='open']:not([class*='checked'])")
-                        board.dict[cell].click()
-                        revealedElem = set(board.find_elements(By.CSS_SELECTOR, "div[class*='open']:not([class*='checked'])")).difference(set(initElem))
-                        
-                        for i in revealedElem:
-                            id = i.get_attribute('id')
-                            board.dict[id].set_number()
-                            board.dict[id].clear_blanks(board)
+    def auto_clear_cells(self):
+        if str(self.number).isdigit() == True:
+            bombs = len(self.set_bombs())
+            if bombs == int(self.number) and bombs > 0:
+                for cell in self.set_blanks().copy():
+                    print("click",cell)
+                    cell.click()
+                    cell.auto_clear_cells()
 
-                        if board.dict[cell].number == "death":
-                            board.completed = "LOSER"
-                            return
-                        else:
-                            board.dict[cell].auto_clear_cells(board)
-        except UnexpectedAlertPresentException:
-            board.completed = "WIN"
     
-    def set_cell(self, row, col):
+    def set_cell(self, row, col, board):
         self.set_number()
-        self.set_neighbors(row, col)
+        self.set_neighbors(row, col, board)
+
+    def flag(self):
+        self.bomb = True
+        self.blank = False
+        self.actions.context_click(self.element)
+        self.actions.perform()
+        for cell in self.neighbors:
+            cell.auto_clear_cells()
