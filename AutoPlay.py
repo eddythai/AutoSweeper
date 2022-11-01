@@ -9,7 +9,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 class AutoPlay(Board):
     def __init__(self, rows, cols, path, seed = None):
         super().__init__(rows, cols, path)
-        to_flag = set()
         self.start = time()
         self.seed = seed if seed is not None else None 
 
@@ -37,23 +36,37 @@ class AutoPlay(Board):
         self.set_seed()
         print("Initializing Board...")
         self.initialize_board()
-        self.dict[f"{int(self.rows/2)}_{int(self.cols/2)}"].click()
+        self.dict[f"{int(self.rows/2)}_{int(self.cols/2)}"].element.click()
         while True:
             revealedElem = self.find_elements(By.CSS_SELECTOR, "div[class*='open']:not([class*='checked'])")
             print("WHILE STEP", len(revealedElem))
             if len(revealedElem) == 0:
                 break
+            print(self.dict[f"{int(self.rows/2)}_{int(self.cols/2)}"].blank)
+            if self.dict[f"{int(self.rows/2)}_{int(self.cols/2)}"].blank == True:
+                print("HELLO TESTING")
+                for i in revealedElem:
+                    id = i.get_attribute('id')
+                    self.dict[id].set_number()
+            self.find_flag(revealedElem)
+            self.find_reveal(revealedElem)
+
+    def find_flag(self, revealedElem):
             for i in revealedElem:
                 id = i.get_attribute('id')
                 self.dict[id].set_number()
-                x = len(self.dict[id].set_blanks())
-                if x == 0 or self.dict[id].number == 0:
-                    elemClass = i.get_attribute("class")
-                    #self.execute_script("arguments[0].setAttribute('class','" +elemClass+" checked')", i)
-                    self.execute_script("arguments[0].setAttribute('class',' square open0 checked')", i)
-                    continue
-                if self.dict[id].number == x + len(self.dict[id].set_bombs()) and self.dict[id].number > 0:
-                    for blankCell in self.dict[id].set_blanks().copy():
+                if self.dict[id].number == len(self.dict[id].set_blanks()) + len(self.dict[id].set_bombs()) and self.dict[id].number > 0:
+                    for blankCell in self.dict[id].set_blanks():
                         blankCell.flag()
-        time.sleep(10000)
+                elemClass = i.get_attribute("class")
+                self.execute_script("arguments[0].setAttribute('class','square open0 checked')", i)
+
+    
+    def find_reveal(self, revealedElem):
+            for i in revealedElem:
+                id = i.get_attribute('id')
+                self.dict[id].auto_clear_cells()
+
+                        
+
 

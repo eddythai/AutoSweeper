@@ -76,13 +76,11 @@ class Cell:
             print("CLEARCELL FINISH")
 
     def auto_clear_cells(self):
-        if str(self.number).isdigit() == True:
-            bombs = len(self.set_bombs())
-            if bombs == int(self.number) and bombs > 0:
-                for cell in self.set_blanks().copy():
-                    print("click",cell)
-                    cell.click()
-                    cell.auto_clear_cells()
+        bombs = len(self.set_bombs())
+        if bombs == int(self.number) and bombs > 0:
+            for cell in self.set_blanks():
+                print(f"{cell.row}_{cell.col} click")
+                cell.click()
 
     
     def set_cell(self, row, col, board):
@@ -94,5 +92,4 @@ class Cell:
         self.blank = False
         self.actions.context_click(self.element)
         self.actions.perform()
-        for cell in self.neighbors:
-            cell.auto_clear_cells()
+
